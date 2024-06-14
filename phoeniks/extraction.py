@@ -129,7 +129,7 @@ class Extraction:
             ax[1].xaxis.set_major_formatter(EngFormatter("Hz"))
             ax[1].set_xlabel("Frequency")
 
-    def get_reliable_frequency_range(self) -> (float, float):
+    def get_reliable_frequency_range(self):
         """Sample amplitude in frequency domain needs to be at least ten times stronger than the dark measurement."""
         idx = np.where(np.abs(self.data.fd_sample) > 10 * np.abs(self.data.fd_dark))[0]
         idx_start = idx[0]
@@ -173,7 +173,7 @@ class Extraction:
         """How many echoes for a given sample thickness with given refractive index "n"
         can fit in the time span between reference peak and end of the time trace?
         Subtract pure zero-padded data"""
-        non_padded_time_data = self.data.time
+        non_padded_time_data = self.data.time - self.data.time[self.data.max_ref]
         non_padded_time_data = non_padded_time_data[~(self.data.td_reference == 0)]
         timespan = np.abs(non_padded_time_data[-1] - non_padded_time_data[np.argmax(np.abs(self.data.td_reference))])
         optical_thickness = thickness * np.mean(self.data.n) / c_0
@@ -231,9 +231,18 @@ class Extraction:
             thickness_error_dict["Total Variation, SVMAF"] = np.zeros(len(thickness_array))
         # Don't show progress bar for each single iteration, instead we initialize global progress bar
         self.progress_bar = False
+        refindexs_list = []
+        extinctions_list = []
+        absorptions_list = []
         for idx, thickness in enumerate(tqdm(thickness_array)):
             # Get refractive index for given thickness
             frequency, n, k, alpha = self.run_optimization(thickness)
+
+            refindexs_list.append(n)
+            extinctions_list.append(k)
+            absorptions_list.append(alpha)
+
+
             # Index array needs to start at 1, since D parameter used m-1 as index
             m = np.arange(1, len(n) - 1)
             thickness_error_dict["Total Variation, deg=1"][idx] = np.sum(_D(n, k, m))
@@ -243,7 +252,10 @@ class Extraction:
             if self.data.mode == "reference_sample_dark_standard_deviations":
                 svmaf_obj = SVMAF(self)
                 n_smooth, k_smooth, alpha_smooth = svmaf_obj.run(thickness=thickness)
-                thickness_error_dict["tv_s"][idx] = np.sum(np.abs(n - n_smooth)) + np.sum(np.abs(k - k_smooth))
+                thickness_error_dict["Total Variation, SVMAF"][idx] = np.sum(np.abs(n - n_smooth)) + np.sum(np.abs(k - k_smooth))
+        refindexs = np.transpose(np.array(refindexs_list))
+        extinctions = np.transpose(np.array(extinctions_list))
+        absorptions = np.transpose(np.array(absorptions_list))
         for key, value in thickness_error_dict.items():
             if np.all(np.isnan(value)):
                 del thickness_error_dict[key]
@@ -251,7 +263,7 @@ class Extraction:
                 thickness_error_dict[key] /= np.nanmax(value)
         for key, value in thickness_error_dict.items():
             print(f"{key}, optimal thickness: {EngFormatter('m')(thickness_array[np.nanargmin(value)])}")
-        return thickness_array, thickness_error_dict
+        return thickness_array, thickness_error_dict, frequency, refindexs, extinctions, absorptions
 
     def get_RMSE_oe(self, frequency, n, k):
         """
@@ -411,3 +423,24 @@ class Extraction:
                 k_previous = self.data.k[i]
         self.data.alpha = 4 * np.pi * self.data.frequency * self.data.k / c_0
         return self.data.frequency, self.data.n, self.data.k, self.data.alpha
+
+    def calculate_permittivity(self):
+        """
+        Calculate the permittivity from the refractive index.
+
+        Parameters
+        ----------
+        refractive_index : complex
+            The refractive index from which the permittivity is calculated.
+
+        Returns
+        -------
+        complex
+            The calculated permittivity.
+        """
+        refractive_index = np.empty(self.data.n.shape, dtype=complex)
+        refractive_index.real = self.data.n
+        refractive_index.imag = self.data.k
+        self.data.e = refractive_index * refractive_index
+
+        return self.data.e

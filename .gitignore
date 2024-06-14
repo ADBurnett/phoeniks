@@ -3,3 +3,6 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.code-workspace
+/Data
+Testing.ipynb

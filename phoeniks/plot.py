@@ -4,6 +4,7 @@ import numpy as np
 from scipy.constants import c as c_0
 
 
+
 class Plot:
     def __init__(self, lower_freq=None, upper_freq=None):
         if lower_freq is None:
@@ -56,6 +57,7 @@ class Plot:
         ax[1].set_xlabel("Frequency")
         ax[1].set_ylabel("Power spectrum")
         plt.tight_layout()
+        plt.show()
 
     def plot_phase(self, extract_data):
         # Normalize the spectrum
@@ -91,6 +93,7 @@ class Plot:
         ax[1].set_xlabel("Frequency")
         ax[1].set_ylabel("Phase")
         plt.tight_layout()
+        plt.show()
 
     def plot_refractive_index(self, f, n, k):
         alpha = 0.01 * 2 * f * 2 * np.pi * k / c_0  # In [cm^-1]
@@ -107,6 +110,7 @@ class Plot:
         ax[1].set_ylabel(r"Absorption [$\mathrm{cm}^{-1}$]")
         ax[1].grid(True)
         plt.tight_layout()
+        plt.show()
 
     def thickness_error(self, thickness_array, thickness_error_dict):
         fig, ax = plt.subplots()
@@ -116,6 +120,7 @@ class Plot:
         ax.grid(True)
         ax.xaxis.set_major_formatter(EngFormatter("m"))
         plt.tight_layout()
+        plt.show()
 
     def plot_output_data(self, data, time_pulse_td, time_pulse_fd, lower_freq=None, upper_freq=None):
         if lower_freq is not None:
@@ -154,3 +159,4 @@ class Plot:
         ax[1].set_xlabel("Frequency")
         ax[1].set_ylabel("Power spectrum")
         plt.tight_layout()
+        plt.show()
