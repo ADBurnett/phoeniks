@@ -6,3 +6,4 @@ from .plot import Plot
 from .svmaf import SVMAF
 from .thz_data import Data
 from .artificial_sample import gaussian, transfer_function, Dielectric, Dielectric_Model_np
+from .reader import create_data

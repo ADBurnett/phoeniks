@@ -54,6 +54,9 @@ class Data:
                  td_sample,
                  thickness,
                  td_dark=None,
+                 td_ref_std=None,
+                 td_samp_std=None,
+                 td_dark_std=None,
                  fd_reference_std=None,
                  fd_sample_std=None,
                  fd_dark_std=None) -> None:
@@ -66,6 +69,9 @@ class Data:
         self.tdraw_reference = td_reference
         self.tdraw_sample = td_sample
         self.tdraw_dark = td_dark
+        self.td_ref_std = td_ref_std
+        self.td_samp_std = td_samp_std
+        self.td_dark_std = td_dark_std
         self.max_ref = np.argmax(self.td_reference)
         self.max_samp = np.argmax(td_sample)
         self.shift = int((self.max_samp - self.max_ref))
