@@ -182,9 +182,9 @@ class Data:
             window = np.zeros_like(self.tdraw_reference)
 
             if window_func is sp.windows.tukey:
-                window[start:end] = sp.windows.tukey(length, alpha, sym=False)  
+                window[start:end] = window_func(length, alpha, sym=False)  
             elif window_func is sp.windows.general_hamming:
-                window[start:end] = sp.windows.general_hamming(length, alpha, sym=False)              
+                window[start:end] = window_func(length, alpha, sym=False)              
             else:
                 window[start:end] = window_func(length, sym=False)
        
@@ -263,27 +263,44 @@ class Data:
         return time_trace
     
 
-    def simple_extract(self):
+    def simple_extract(self, logarithm = 'natural'):
+
+
+        self.log_functions = {
+            'decadic': np.log10,
+            'natural': np.log,
+        }
+
+        log_func = self.log_functions.get(logarithm.lower())
+        if log_func is None:
+            raise ValueError(f"Invalid logarithm type: {type}")
+        
+        n_air = 1.00027
+
         self.n = np.zeros(len(self.frequency))
         phase_diff = np.unwrap(np.angle(self.fd_reference)-np.angle(self.fd_sample))
         if self.omega[0] == 0:
             self.n[0] = 0
-            self.n[1:] = ((c_0)/(self.omega[1:]*self.thickness)) * phase_diff[1:] + 1.00027;
+            self.n[1:] = ((c_0)/(self.omega[1:]*self.thickness)) * phase_diff[1:] + n_air;
         else:
-            self.n = ((c_0)/(self.omega*self.thickness)) * phase_diff + 1.00027;
+            self.n = ((c_0)/(self.omega*self.thickness)) * phase_diff + n_air;
         
+        # calculate some useful parameters
         amplitude_ratio = np.abs(self.fd_sample) / np.abs(self.fd_reference)
         self.k = np.zeros(len(self.frequency))
+        t_co = 4*self.n*n_air/(self.n+n_air)**2
+  
 
         if self.omega[0] == 0:
             # Circumvent division by 0 error
             self.k[0] = 0
-            self.k[1:] = -(c_0/(self.omega[1:]*self.thickness)) * np.log((((self.n[1:]+1)/(4*self.n[1:]))**2) * amplitude_ratio[1:])
+            self.k[1:] = -c_0/self.thickness/self.omega[1:]*log_func(amplitude_ratio[1:]/t_co[1:])
         else:
-            self.k = -(c_0/(self.omega*self.thickness)) * np.log((((self.n+1)/(4*self.n))**2) * amplitude_ratio)
-        self.a = self.k * 4 * np.pi * self.frequency / c_0;
-
+            self.k = -c_0/self.thickness/self.omega*log_func(amplitude_ratio/t_co)
+        self.a = self.k * 2 * self.omega / c_0;
     
+
+    # Functions needed for plotly processing app
     def generate_layout(self):
         # app layout using bootstrap
         

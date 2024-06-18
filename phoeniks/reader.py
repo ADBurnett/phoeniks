@@ -2,6 +2,7 @@ import re
 import csv
 import numpy as np
 from .thz_data import Data
+from scipy import interpolate
 
 
 
@@ -85,26 +86,76 @@ def read_fd_XY(filename):
     return data
 
 
-def create_data(ref_file, sample_file, dark_file=None, fd_reference_std=None, fd_sample_std=None, fd_dark_std=None, reader='Leeds', sample_thickness=None, sample_name=None):
+def read_XYXY(filename, XYXYargs=[0.1,100,0.001]):
+    #delimiter = find_delimiter(filename)
+    delimiter ="\t"
+    headers = determine_header_lines(filename)
+    array = np.genfromtxt(filename, dtype='float', comments='#', delimiter=delimiter, skip_header=headers)
+    #array = array.T
+    x_array = array[:, 0::2]  # Select every second column (x values)
+    y_array = array[:, 1::2]  # Select every second column (y values)
+
+    #check if all columns in X are the same
+
+    are_columns_identical = np.all(x_array[:, 1:] == x_array[:, :-1])
+
+    if are_columns_identical:
+        time = x_array[:, 0]
+        data = np.mean(y_array)
+        std = np.std(y_array)
+    else:
+
+        x_start = XYXYargs[0]
+        x_stop = XYXYargs[1]
+        x_spacing = XYXYargs[2]
+
+        # Create the new x-axis values
+        new_time = np.arange(x_start, x_stop, x_spacing)
+
+        interpolated_y_values = np.zeros((y_array.shape[1], len(new_time)))
+
+        # Interpolate y-values onto the new x-axis
+        for col in range(y_array.shape[1]):
+            interp_func = interpolate.interp1d(x_array[:, col], y_array[:, col], kind='linear')
+            interpolated_y_values[col, :] = interp_func(new_time)
+
+        interpolated_y_values = interpolated_y_values.T
+        time = new_time
+        data = np.mean(interpolated_y_values)
+        std = np.std(interpolated_y_values)
+
+
+    return time, data, std
+
+
+def create_data(ref_file, sample_file, dark_file=None, fd_reference_std=None, fd_sample_std=None, fd_dark_std=None, reader='Leeds', sample_thickness=None, sample_name=None, XYXYargs=[None,None,None]):
     
     reader_functions = {
     'Leeds': read_Leeds,
     'XY': read_XY,
     'XYYY': read_XYYY,
-    #'XYXY' : read_XYXY,
+    'XYXY' : read_XYXY,
     # Add other window types here
 
 }
     
     reader_func = reader_functions.get(reader)
 
-    time_ref, data_ref, std_ref = reader_func(ref_file)
-    time_samp, data_samp, std_samp = reader_func(sample_file)
-
-    if dark_file != None:
-        time_dark, data_dark, std_dark = reader_func(dark_file)
+    if reader_func == read_XYXY:
+        time_ref, data_ref, std_ref = reader_func(ref_file, XYXYargs=[None,None,None])
+        time_samp, data_samp, std_samp = reader_func(sample_file, XYXYargs=[None,None,None])
+        if dark_file != None:
+            time_dark, data_dark, std_dark = reader_func(dark_file, XYXYargs=[None,None,None])
+        else:
+            time_dark, data_dark, std_dark = None, None, None  
     else:
-        time_dark, data_dark, std_dark = None, None, None
+        time_ref, data_ref, std_ref = reader_func(ref_file)
+        time_samp, data_samp, std_samp = reader_func(sample_file)
+
+        if dark_file != None:
+            time_dark, data_dark, std_dark = reader_func(dark_file)
+        else:
+            time_dark, data_dark, std_dark = None, None, None
 
     if np.array_equal(time_ref, time_samp):
         if dark_file != None:
