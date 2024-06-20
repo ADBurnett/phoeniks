@@ -441,6 +441,10 @@ class Extraction:
         refractive_index = np.empty(self.data.n.shape, dtype=complex)
         refractive_index.real = self.data.n
         refractive_index.imag = self.data.k
-        self.data.e = refractive_index * refractive_index
+        self.data.ecmplx = refractive_index * refractive_index
+        self.data.ncmplx = refractive_index
+        self.data.ereal = np.real(self.data.ecmplx)
+        self.data.eimag = np.imag(self.data.ecmplx)
 
-        return self.data.e
+
+        return 

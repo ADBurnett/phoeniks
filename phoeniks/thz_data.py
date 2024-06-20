@@ -300,6 +300,15 @@ class Data:
         self.a = self.k * 2 * self.omega / c_0;
     
 
+        refractive_index = np.empty(self.n.shape, dtype=complex)
+        refractive_index.real = self.n
+        refractive_index.imag = self.k
+        self.ecmplx = refractive_index * refractive_index
+        self.ncmplx = refractive_index
+        self.ereal = np.real(self.ecmplx)
+        self.eimag = np.imag(self.ecmplx)
+    
+
     # Functions needed for plotly processing app
     def generate_layout(self):
         # app layout using bootstrap
