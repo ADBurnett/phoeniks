@@ -128,6 +128,40 @@ def read_XYXY(filename, XYXYargs=[0.1,100,0.001]):
     return time, data, std
 
 
+def read_VertFile(filename):
+    delimiter ="\t"
+    headers = 2
+    filename = "Data/new_data/VertSweep_320V_10^7VpA_purged_tc5ms_Gathering_Quartz_ref.dat"
+    array = np.genfromtxt(filename, dtype='float', comments='#', delimiter=delimiter, skip_header=headers)
+    time = array[1:, 0]
+    time = time * 1E-12
+    y_array = array[:, 1::2]  # Select every second column (y values)
+
+    unique_values = np.unique(y_array[0])
+
+    # Create a dictionary to hold the split arrays
+    data = {}
+
+    # Create a dictionary to hold the mean and standard deviation
+    stats = {}
+
+    # Iterate over unique values and create arrays
+    for value in unique_values:
+        # Select columns where the top row is equal to the current unique value
+        data[value] = y_array[1:, y_array[0] == value]
+
+
+        # Calculate mean and standard deviation for each array
+        mean = np.mean(data[value], axis=1)
+        std_dev = np.std(data[value], axis=1)
+        
+        # Store the mean and standard deviation in the stats dictionary
+        stats[value] = {'mean': mean, 'std_dev': std_dev}
+
+    return time, data, stats, unique_values
+
+
+
 def create_data(ref_file, sample_file, dark_file=None, fd_reference_std=None, fd_sample_std=None, fd_dark_std=None, reader='Leeds', sample_thickness=None, sample_name=None, XYXYargs=[None,None,None]):
     
     reader_functions = {

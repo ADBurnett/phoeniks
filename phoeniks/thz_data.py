@@ -212,7 +212,7 @@ class Data:
         self.fd_reference = np.fft.rfft(self.td_reference)
         self.fd_sample = np.fft.rfft(self.td_sample)
         self.windowed = True
-        self.win_start =  start
+        self.win_start = start
         self.win_end = end
 
     def _data_is_windowed(self) -> bool:
