@@ -121,10 +121,12 @@ class Data:
             raise ValueError("Supplied frequency data does not match calculated frequency array. " +
                              "Frequency data should be only defined for positive frequencies.")
         
-            # read Bootstrap external theme
+        # read Bootstrap external theme
         external_stylesheets = [dbc.themes.BOOTSTRAP]
         
+        #plotting app definitions
         self.app = Dash(__name__, external_stylesheets=external_stylesheets)
+        self.plot_type = "trans_spec"
 
     def offset_time_to_reference_peak(self) -> None:
         """Shift peak of reference trace to 0."""
@@ -278,15 +280,15 @@ class Data:
         n_air = 1.00027
 
         self.n = np.zeros(len(self.frequency))
-        phase_diff = np.unwrap(np.angle(self.fd_reference)-np.angle(self.fd_sample))
+        self.phase_diff = np.unwrap(np.angle(self.fd_reference)-np.angle(self.fd_sample))
         if self.omega[0] == 0:
             self.n[0] = 0
-            self.n[1:] = ((c_0)/(self.omega[1:]*self.thickness)) * phase_diff[1:] + n_air;
+            self.n[1:] = ((c_0)/(self.omega[1:]*self.thickness)) * self.phase_diff[1:] + n_air;
         else:
-            self.n = ((c_0)/(self.omega*self.thickness)) * phase_diff + n_air;
+            self.n = ((c_0)/(self.omega*self.thickness)) * self.phase_diff + n_air;
         
         # calculate some useful parameters
-        amplitude_ratio = np.abs(self.fd_sample) / np.abs(self.fd_reference)
+        self.amplitude_ratio = np.abs(self.fd_sample) / np.abs(self.fd_reference)
         self.k = np.zeros(len(self.frequency))
         t_co = 4*self.n*n_air/(self.n+n_air)**2
   
@@ -294,9 +296,9 @@ class Data:
         if self.omega[0] == 0:
             # Circumvent division by 0 error
             self.k[0] = 0
-            self.k[1:] = -c_0/self.thickness/self.omega[1:]*log_func(amplitude_ratio[1:]/t_co[1:])
+            self.k[1:] = -c_0/self.thickness/self.omega[1:]*log_func(self.amplitude_ratio[1:]/t_co[1:])
         else:
-            self.k = -c_0/self.thickness/self.omega*log_func(amplitude_ratio/t_co)
+            self.k = -c_0/self.thickness/self.omega*log_func(self.amplitude_ratio/t_co)
         self.a = self.k * 2 * self.omega / c_0;
     
 
@@ -393,8 +395,12 @@ class Data:
             fig=self.window_fig(rng[0],rng[1])
             fig1=self.spectral_fig()
             fig2=self.phase_fig()
-            fig3=self.abs_fig()
-            fig4=self.ref_fig()
+            if self.plot_type == "trans_spec":
+                fig3=self.abs_fig()
+                fig4=self.ref_fig()
+            elif self.plot_type == "trans":
+                fig3=self.trans_fig()
+                fig4=self.Absorbance_fig()
             return fig, fig1, fig2, fig3, fig4
         
 
@@ -464,4 +470,33 @@ class Data:
         fig.update_xaxes(title='Frequency (THz)')
         fig.update_yaxes(title='Refractive Index')
         fig.add_traces(go.Scatter(x=self.frequency/1E12, y=self.n,name='refractive index', line_color='black'))
+        return fig
+    
+
+    def trans_fig(self):
+        ''' generates the post fourier transformed spectrum plot'''
+        fig = go.Figure()
+        fig.update_layout(title='Transmittance')
+        fig.update_xaxes(title='Frequency (THz)')
+        fig.update_yaxes(title='% Transmittance')
+        fig.add_traces(go.Scatter(x=self.frequency/1E12, y=self.amplitude_ratio*100,name='% Transmittance', line_color='black'))
+        return fig
+
+    def reflectivity_fig(self):
+        ''' generates the post fourier transformed spectrum plot'''
+        fig = go.Figure()
+        fig.update_layout(title='Reflectivity')
+        fig.update_xaxes(title='Frequency (THz)')
+        fig.update_yaxes(title='Reflectivity')
+        fig.add_traces(go.Scatter(x=self.frequency/1E12, y=self.amplitude_ratio,name='Reflectivity', line_color='black'))
+        return fig 
+
+
+    def Absorbance_fig(self):
+        ''' generates the post fourier transformed spectrum plot'''
+        fig = go.Figure()
+        fig.update_layout(title='Absorbance')
+        fig.update_xaxes(title='Frequency (THz)')
+        fig.update_yaxes(title='Decadic Absorbance')
+        fig.add_traces(go.Scatter(x=self.frequency/1E12, y=2 - np.log10(self.amplitude_ratio*100),name='Decadic Absorbance', line_color='black'))
         return fig
